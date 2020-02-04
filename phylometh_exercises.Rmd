@@ -1,0 +1,166 @@
+---
+title: "Assignment"
+author: "jacob Moutouama"
+date: "1/30/2020"
+output: html_document
+---
+
+```{r setup, cache = F}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+```{r}
+rm(list=ls(all=TRUE))  ## Clear all
+setwd("/Users/jmoutouama/Documents/EEBCourse/PhyloMeth/PhyloMeth2020")
+```
+
+## **Assignment: PhyloMeth**
+##### Table of content {.tabset}
+###### Week1: : Getting Started
+
+```{r}
+#install.packages("ctv") #the CRAN task view package
+
+#library(ctv) #to load the package
+#install.views(c("Phylogenetics", "WebTechnologies"))
+#Bioconductor is a separate repository with lots of packages for dealing with genetic data, especially nextgen data. To install this and a few initial packages:
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install(version = "3.10")
+#BiocManager::install("Biostrings", ask=FALSE)
+
+##Experience with coding.
+##Function to plot any order in R.
+GetTrees <- function(Order) {
+    library(ape)
+  X <- c("red", "orange", "yellow", "green", "blue", "purple")
+    result<-plot(Order, type = "c", use.edge.length = FALSE,
+     edge.color = sample(X, length(bird.orders$edge)/2, replace = TRUE),
+     edge.width = rep(5, length(bird.orders$edge)/2))
+segments(rep(0, 6), 6.5:1.5, rep(2, 6), 6.5:1.5, lwd = 5, col = X)
+text(rep(2.5, 6), 6.5:1.5, paste(X, "..."), adj = 0)
+title("Fancy tree...")
+    return(result)
+}
+
+#let's use the data in ape
+library(ape)
+data("bird.orders")
+GetTrees(bird.orders)
+
+
+```
+
+
+###### Week2: Getting Trees and Data
+
+```{r}
+## Let's use the fonction made by Brian to do so. Here I want to make a tree from  Open Tree of Life 
+source("Tree from Open Source.R")
+GetTreeFromOpenTree("Thunbergia")
+# I got here just one node. Therefore, my tree had no information
+
+
+## Let's make a tree from a studies
+install.packages("rotl")
+install.packages("devtools")
+devtools::install_github("ropensci/rotl")
+library("rotl")
+
+##Let's try to undertand the fucntion proved in the course
+# Open Tree can also return the original studies with the source trees.
+    Mammalia.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
+    value="Mammalia")
+    Mammalia.studies.ids <- unlist(Mammalia.studies$study_ids)
+Mammalia.studies.ids[1]
+    # Let's get info on the first study
+    Mammalia.study1.metadata <- get_study_meta(Mammalia.studies[[1]][[1]])
+    print(get_publication(Mammalia.study1.metadata))
+
+    # And let's get the tree from this study
+    # Look in rotl documentation for the right function
+    # Hint: get_study_trees() is close, but you don't know the tree.id
+  Mammalia.study1.tree1 <- get_study_tree(study_id="pg_2550", tree_id="tree5522")
+    # And plot it
+    plot.phylo(Mammalia.study1.tree1, type="fan", cex=0.2)
+
+
+## Now we can run the function with P_class as input. Here p_class is any class of species (Eg. Mammalia)
+GetTreeFromOpenTree <- function(p_class) {
+  library(rotl)
+  library(ape)
+  p_class.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
+    value="p_class")
+  p_class.studies.ids <- unlist(p_class.studies$study_ids)
+  p_class.study1.metadata <- get_study_meta(p_class.studies[[1]][[1]])
+  print(get_publication(p_class.study1.metadata))
+  study_id1<-p_class.studies.ids[1]
+  p_class.tree<-get_tree_ids( p_class.study1.metadata)
+  study_tree1<-tree[1]
+  p_class.study1.tree1 <- get_study_tree(study_id1, tree_id1)
+  plot.phylo(p_class.study1.tree1, type="fan", cex=0.2)
+  return.list <- list(p_class.tree, p_class.study1.tree1 )
+  names(return.list) <- c("tol.tree", "study1.tree")
+  return(return.list)
+}
+
+GetTreeFromOpenTree(Mammalia)
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+######Week4: Gene Tree Species Tree
+
+
+
+```{r}
+devtools::install_github("bomeara/phybase")
+library(rotl)
+library(ape)
+phy <- get_study_tree("ot_485", "tree1")
+plot(phy, cex=0.3)
+```
+
+
+```{r}
+library(geiger)
+phy <- drop.random(phy, Ntip(phy) - 10)
+plot(phy)
+axisPhylo()
+```
+
+```{r}
+library(phybase)
+gene.tree <- phybase::sim.coaltree.phylo(phy, pop.size=1e-12)
+plot(gene.tree)
+```
+
+```{r}
+library(phytools)
+plot(cophylo(phy, gene.tree, cbind(sort(phy$tip.label), sort(gene.tree$tip.label))))
+```
+
+```{r}
+## Rotating nodes to optimize matching...
+## Done.
+
+species.tree <- rcoal(7)
+species.tree$edge.length <- species.tree$edge.length / (10*max(branching.times(species.tree)))
+gene.tree <- phybase::sim.coaltree.phylo(species.tree)
+plot(cophylo(species.tree, gene.tree, cbind(sort(species.tree$tip.label), sort(gene.tree$tip.label))))
+
+```
+
+
+
