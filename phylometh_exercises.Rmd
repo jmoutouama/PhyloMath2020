@@ -72,6 +72,8 @@ library("rotl")
 # Open Tree can also return the original studies with the source trees.
     Mammalia.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
     value="Mammalia")
+  list_trees(Mammalia.studies,Mammalia.studies.ids[1])
+
     Mammalia.studies.ids <- unlist(Mammalia.studies$study_ids)
 Mammalia.studies.ids[1]
     # Let's get info on the first study
@@ -91,29 +93,22 @@ GetTreeFromOpenTree <- function(p_class) {
   library(rotl)
   library(ape)
   p_class.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
-    value="p_class")
+    value=p_class)
+  print(p_class.studies)
   p_class.studies.ids <- unlist(p_class.studies$study_ids)
   p_class.study1.metadata <- get_study_meta(p_class.studies[[1]][[1]])
   print(get_publication(p_class.study1.metadata))
   study_id1<-p_class.studies.ids[1]
+  study_tree1<-list_trees(p_class.studies,p_class.studies.ids[1])[1]
   p_class.tree<-get_tree_ids( p_class.study1.metadata)
-  study_tree1<-tree[1]
-  p_class.study1.tree1 <- get_study_tree(study_id1, tree_id1)
+  p_class.study1.tree1 <- get_study_tree(study_id1, study_tree1)
   plot.phylo(p_class.study1.tree1, type="fan", cex=0.2)
   return.list <- list(p_class.tree, p_class.study1.tree1 )
-  names(return.list) <- c("tol.tree", "study1.tree")
+  names(return.list) <- c("p_class.tree", "study1.tree")
   return(return.list)
 }
 
-GetTreeFromOpenTree(Mammalia)
-
-
-
-
-
-
-
-
+GetTreeFromOpenTree("Mammalia")
 
 
 ```
