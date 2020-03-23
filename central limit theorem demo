@@ -1,0 +1,13 @@
+get_random <- function() {
+  return(runif(1, min=0, max=1))
+}
+get_many_random <- function() {
+  return(replicate(1000, get_random()))
+}
+sum_many_random <- function() {
+  return(sum(get_many_random()))
+}
+sample_many_sums <- function() {
+  return(replicate(100, sum_many_random()))
+}
+hist(sample_many_sums())

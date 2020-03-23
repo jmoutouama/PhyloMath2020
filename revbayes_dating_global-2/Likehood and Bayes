@@ -1,0 +1,87 @@
+---
+title: "Likelihood and Bayes"
+author: "Brian O'Meara"
+date: "2/13/2020"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r functions}
+#' Function for making up data
+#' @param n Number of points to simulate
+sim_data <- function(n=2000, mean=15, sd=5){
+  sims <- stats::rnorm(n=n, mean=mean, sd=sd)
+  return(sims)
+}
+lnlikelihood_data <- function(sims, mean=15, sd=5, log=TRUE) {
+  return(sum(stats::dnorm(x=sims, mean=mean, sd=sd, log=log)))
+}
+optimize_likelihood <- function(sims, nsteps=1000, verbose=FALSE) {
+  starting_mean <- mean(sims)+7 # We're adding 7 here for teaching: normally we want to start at our best guess but our guess is too good for teaching, so let's start in a bad area
+  starting_sd <- sd(sims)+2 # same as abo e
+  best_mean <- starting_mean
+  best_sd <- starting_sd
+  best_lnL <- lnlikelihood_data(sims, mean=best_mean, sd=best_sd)
+  for (i in sequence(nsteps)) {
+    new_mean <- best_mean + stats::runif(1, min=-.1, max=.1)
+    new_sd <- abs(best_sd + stats::runif(1, min=-.1, max=.1))
+    new_lnL <- lnlikelihood_data(sims, mean=new_mean, sd=new_sd)
+    if(new_lnL > best_lnL) {
+      best_lnL <- new_lnL
+      best_mean <- new_mean
+      best_sd <- new_sd
+      if(verbose) {
+        print(c(step=i, mean=best_mean, sd=best_sd, lnL = best_lnL))
+      }
+    } 
+  }
+  return(c(mean=best_mean, sd=best_sd, lnL = best_lnL))
+}
+compute_prior_mean <- function(current_mean, min=0, max=10000, log=TRUE) {
+  return(sum(dunif(x=current_mean, min=min, max=max, log=log)))
+}
+compute_prior_sd <- function(current_sd, min=0, max=100, log=TRUE) {
+  return(sum(dunif(x=current_sd, min=min, max=max, log=log)))
+}
+mcmc <- function(sims, nsteps=1000 ) {
+  starting_mean <- mean(sims)+7 # We're adding 7 here for teaching: normally we want to start at our best guess but our guess is too good for teaching, so let's start in a bad area
+  starting_sd <- sd(sims)+2 #same as above
+  current_mean <- starting_mean
+  current_sd <- starting_sd
+  current_posterior <- lnlikelihood_data(sims, mean=current_mean, sd=current_sd) + compute_prior_mean(current_mean) + compute_prior_sd(current_sd)
+  observations <- data.frame(matrix(nrow=nsteps+1, ncol=4))
+  colnames(observations) <- c("step", "mean", "sd", "likehoodTimesPrior")
+  observations[1,] <- c(step=0, mean=current_mean, sd=current_sd, likehoodTimesPrior=current_posterior)
+  for (i in sequence(nsteps)) {
+    new_mean <- current_mean + stats::runif(1, min=-.1, max=.1)
+    new_sd <- abs(current_sd + stats::runif(1, min=-.1, max=.1))
+    new_posterior <- lnlikelihood_data(sims, mean=new_mean, sd=new_sd) + compute_prior_mean(new_mean) + compute_prior_sd(new_sd)
+      observations[i+1,] <- c(step=i, mean=current_mean, sd=current_sd, likehoodTimesPrior=current_posterior)
+    if(new_posterior > current_posterior | runif(1)<0.5) {
+      current_posterior <- new_posterior
+      current_mean <- new_mean
+      current_sd <- new_sd
+    } 
+  }
+  return(observations)
+}
+```
+```{r testing, cache=TRUE}
+made_up_data <- sim_data()
+print(mean(made_up_data))
+print(sd(made_up_data))
+print("good")
+print(lnlikelihood_data(made_up_data))
+print("bad")
+print(lnlikelihood_data(made_up_data, mean=-89))
+print(optimize_likelihood(made_up_data))
+```
+```{r mcmc, cache=TRUE}
+mcmc_results <- mcmc(made_up_data, nsteps=10000)
+#print(mcmc_results)
+```
+```{r mcmcplot, cache=TRUE}
+plot(mcmc_results$step, mcmc_results$likehoodTimesPrior, bty="n", type="l")
+mcmc_results_no_burnin <- mcmc_results[-(1:4000),]
+plot(mcmc_results_no_burnin$mean, mcmc_results_no_burnin$sd, pch=20, col=rgb(0,0,0,.1))

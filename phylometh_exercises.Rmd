@@ -2,10 +2,14 @@
 title: "Assignment"
 author: "jacob Moutouama"
 date: "1/30/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    thumbnails: true
 ---
 
-```{r setup, cache = F}
+```{r setup, cache = T}
 knitr::opts_chunk$set(error = TRUE)
 ```
 
@@ -14,9 +18,9 @@ rm(list=ls(all=TRUE))  ## Clear all
 setwd("/Users/jmoutouama/Documents/EEBCourse/PhyloMeth/PhyloMeth2020")
 ```
 
-## **Assignment: PhyloMeth**
-##### Table of content {.tabset}
-###### Week1: : Getting Started
+#### **Assignment: PhyloMeth**
+
+## Week1: : Getting Started
 
 ```{r}
 #install.packages("ctv") #the CRAN task view package
@@ -46,14 +50,14 @@ title("Fancy tree...")
 
 #let's use the data in ape
 library(ape)
-data("bird.orders")
+ data("bird.orders")
 GetTrees(bird.orders)
 
 
 ```
 
 
-###### Week2: Getting Trees and Data
+## Week2: Getting Trees and Data
 
 ```{r}
 ## Let's use the fonction made by Brian to do so. Here I want to make a tree from  Open Tree of Life 
@@ -63,29 +67,11 @@ GetTreeFromOpenTree("Thunbergia")
 
 
 ## Let's make a tree from a studies
-install.packages("rotl")
-install.packages("devtools")
-devtools::install_github("ropensci/rotl")
+
+#install.packages("devtools")
+#devtools::install_github("ropensci/rotl")
 library("rotl")
 
-##Let's try to undertand the fucntion proved in the course
-# Open Tree can also return the original studies with the source trees.
-    Mammalia.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
-    value="Mammalia")
-  list_trees(Mammalia.studies,Mammalia.studies.ids[1])
-
-    Mammalia.studies.ids <- unlist(Mammalia.studies$study_ids)
-Mammalia.studies.ids[1]
-    # Let's get info on the first study
-    Mammalia.study1.metadata <- get_study_meta(Mammalia.studies[[1]][[1]])
-    print(get_publication(Mammalia.study1.metadata))
-
-    # And let's get the tree from this study
-    # Look in rotl documentation for the right function
-    # Hint: get_study_trees() is close, but you don't know the tree.id
-  Mammalia.study1.tree1 <- get_study_tree(study_id="pg_2550", tree_id="tree5522")
-    # And plot it
-    plot.phylo(Mammalia.study1.tree1, type="fan", cex=0.2)
 
 
 ## Now we can run the function with P_class as input. Here p_class is any class of species (Eg. Mammalia)
@@ -115,7 +101,7 @@ GetTreeFromOpenTree("Mammalia")
 
 
 
-######Week4: Gene Tree Species Tree
+##Week4: Gene Tree Species Tree
 
 
 
@@ -157,5 +143,203 @@ plot(cophylo(species.tree, gene.tree, cbind(sort(species.tree$tip.label), sort(g
 
 ```
 
+
+##Week 5: See RevBayes file in the file and the output
+
+##Week 6: DiscreteCharacters
+```{r}
+
+# Data from Brandley et al. (2008)
+library(ape)
+library(phytools)
+sqData<-read.csv("brandley_table.csv")
+head(sqData)
+sqTree<-read.nexus("squamate.tre.txt")
+
+```
+
+```{r}
+#To get a character for “limbed” versus “limbless” we will have to create it by finding all species with all limbs of length 0.
+hindLimbs<-sqData[,"HLL"]!=0
+foreLimbs<-sqData[,"FLL"]!=0
+limbless<-!hindLimbs & !foreLimbs
+limbless
+```
+```{r}
+#Now we need to set our species names to match our tree, and assign these names to our trait vector:
+speciesNames<-sqData[,1]
+speciesNames
+
+```
+
+```{r}
+species<-sub(" ","_",speciesNames)
+
+#names(limbless)<-species
+```
+
+```{r}
+#Now, we can change what we are calling our character values (although TRUE & FALSE would be fine):
+limbs<-sapply(limbless,function(x) if(x) 0 else 1)
+class (limbs)
+## Now we create a data frame to clean these data
+limbs.data<-data.frame(species,limbs)
+```
+
+
+
+```{r}
+
+#library(devtools)
+#devtools::install_github("phylotastic/rphylotastic")
+#library(rphylotastic)
+#library(geiger)
+
+
+str(limbs)
+
+
+CleanData <- function(phy, data) {
+  library(rphylotastic)
+  speciesNames<-unlist(data[,1], use.names = FALSE)
+  cleaned.names.data<-taxa_resolve_names_with_gnr(speciesNames)
+  cleaned.names.phy<-taxa_resolve_names_with_gnr(phy$tip.label)
+  phy.cleaned.names<-phy
+  phy.cleaned.names$tip.label <- cleaned.names.phy
+  data.vector<-data[,2]
+  names(data.vector)<-cleaned.names.data
+  cleaned.data<-treedata(phy.cleaned.names,data.vector, sort=TRUE, warnings=TRUE)
+  return(cleaned.data)
+}
+
+cleaned.discrete<-CleanData(sqTree,limbs.data)
+class(cleaned.discrete[[2]])
+
+
+
+VisualizeData <- function(phy, data) {
+   dotTree(phy,data[,1],colors=setNames(c("blue","red"),c(1,0)),type="fan",fsize=0.3,lwd=2)
+}
+
+
+
+VisualizeData(cleaned.discrete$phy,cleaned.discrete$data)
+
+```
+
+```{r}
+##First, let’s use parsimony to look at ancestral states:
+library( phangorn)
+data(Laurasiatherian)
+cleaned.discrete.phydat<-as.phyDat(cleaned.discrete$data, type="USER", levels = c("1","0"), ambiguity="-")
+cleaned.discrete.tree<-pml(cleaned.discrete$phy, cleaned.discrete.phydat)
+anc.p <- ancestral.pars(cleaned.discrete$phy, cleaned.discrete.phydat, type = "MPR", cost = NULL,return = "prob")
+plotAnc(cleaned.discrete.tree, anc.p, 1)
+```
+```{r}
+anc.ml <- ancestral.pml(pml(cleaned.discrete$phy, cleaned.discrete.phydat), type="ml")
+plotAnc(cleaned.discrete.tree, anc.ml, 1)
+
+```
+```{r}
+## Yes the second tree differ from the first. it seems like the second tree has more precision. 
+```
+
+
+
+##Week 6: Continuous character models
+
+```{r}
+#install.packages("yearn")
+library(ape) 
+library(geiger) 
+library(OUwie)
+library(phytools)
+#library(devtools)
+#devtools::install_github("phylotastic/rphylotastic")
+library(rphylotastic)
+
+```
+
+```{r}
+## This data come from  Brandley et al. (2008)
+
+sqData<-read.csv("brandley_table.csv")
+head(sqData)
+sqTree<-read.nexus ("squamate.tre.txt")
+plotTree(sqTree,type="fan",lwd=1,fsize=0.5)
+
+```
+
+```{r}
+source("resolvescientificnames.R")
+CleanData <- function(phy, data) {
+  speciesNames<-unlist(data[,1], use.names = FALSE)
+  cleaned.names.data<-taxa_resolve_names_with_gnr(speciesNames)
+  cleaned.names.phy<-taxa_resolve_names_with_gnr(phy$tip.label)
+  phy.cleaned.names<-phy
+  phy.cleaned.names$tip.label <- cleaned.names.phy
+  data.vector<-data[,2]
+  names(data.vector)<-cleaned.names.data
+  cleaned.data<-treedata(phy.cleaned.names,data.vector, sort=TRUE, warnings=TRUE)
+  return(cleaned.data)
+}
+
+cleaned.data<-CleanData(sqTree,sqData)
+class(cleaned.data)
+str(cleaned.data)
+
+```
+
+
+
+```{r}
+
+VisualizeData <- function(phy, data) {
+   diagnostic<-contMap(phy, data, res=100, fsize=NULL, ftype=NULL, lwd=4, legend=NULL,
+       lims=NULL, outline=TRUE, sig=3, type="phylogram", direction="rightwards",
+       plot=FALSE)
+   plot(diagnostic)
+}
+
+VisualizeData(cleaned.data$phy,cleaned.data$data[,1])
+
+```
+
+
+
+
+```{r}
+## Brownian motion is a stochastic model in which changes from one time to the next are random draws from a normal distribution with mean 0.0 and variance σ2 × Δt. In other words, the expected variance under Brownian motion increases linearly through time with instantaneous rate σ2.
+
+BM2<-fitContinuous(cleaned.data$phy,cleaned.data$data[,1],model="BM") 
+BM2
+```
+```{r}
+#Here we see that the rate of evolution is  138.341054 in 169.171661 unit of  time. 
+```
+
+```{r}
+OU1 <- fitContinuous(cleaned.data$phy, cleaned.data$data[,1], model="OU")
+par(mfcol=(c(1,2)))
+plot(cleaned.data$phy, show.tip.label=FALSE)
+ou.tree <- rescale(cleaned.data$phy, model="OU",0.001)
+plot(ou.tree)
+```
+```{r}
+##These trees are slighly differents. The second tree vary according to the value of a. As a, the parameter used for transformation increase, the time for diversifation decrease
+```
+
+```{r}
+AIC.BM2 <- BM2$opt$aicc
+AIC.OU1 <- OU1$opt$aicc
+
+```
+```{r}
+
+#one.discrete.char <-limbs 
+#reconstruction.info <- ace(one.discrete.char, sqTree, type="discrete", method="ML", CI=TRUE)
+#best.states <- colnames(reconstruction.info$lik.anc)[apply(reconstruction.info$lik.anc, 1, which.max)]
+```
 
 
