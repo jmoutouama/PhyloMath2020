@@ -3,10 +3,12 @@ title: "Assignment"
 author: "jacob Moutouama"
 date: "1/30/2020"
 output: 
-  html_document:
-    toc: true
-    toc_float: true
-    thumbnails: true
+  html_document: 
+    thumbnails: yes
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, cache = T}
@@ -20,7 +22,7 @@ setwd("/Users/jmoutouama/Documents/EEBCourse/PhyloMeth/PhyloMeth2020")
 
 #### **Assignment: PhyloMeth**
 
-## Week1: : Getting Started
+## Week1:  Getting Started
 
 ```{r}
 #install.packages("ctv") #the CRAN task view package
@@ -50,9 +52,8 @@ title("Fancy tree...")
 
 #let's use the data in ape
 library(ape)
- data("bird.orders")
+data("bird.orders")
 GetTrees(bird.orders)
-
 
 ```
 
@@ -61,8 +62,8 @@ GetTrees(bird.orders)
 
 ```{r}
 ## Let's use the fonction made by Brian to do so. Here I want to make a tree from  Open Tree of Life 
-source("Tree from Open Source.R")
-GetTreeFromOpenTree("Thunbergia")
+#source("Tree from Open Source.R")
+#GetTreeFromOpenTree("Thunbergia")
 # I got here just one node. Therefore, my tree had no information
 
 
@@ -70,7 +71,7 @@ GetTreeFromOpenTree("Thunbergia")
 
 #install.packages("devtools")
 #devtools::install_github("ropensci/rotl")
-library("rotl")
+#library("rotl")
 
 
 
@@ -101,12 +102,12 @@ GetTreeFromOpenTree("Mammalia")
 
 
 
-##Week4: Gene Tree Species Tree
+## Week4: Gene Tree Species Tree
 
 
 
 ```{r}
-devtools::install_github("bomeara/phybase")
+#devtools::install_github("bomeara/phybase")
 library(rotl)
 library(ape)
 phy <- get_study_tree("ot_485", "tree1")
@@ -118,7 +119,7 @@ plot(phy, cex=0.3)
 library(geiger)
 phy <- drop.random(phy, Ntip(phy) - 10)
 plot(phy)
-axisPhylo()
+
 ```
 
 ```{r}
@@ -144,9 +145,9 @@ plot(cophylo(species.tree, gene.tree, cbind(sort(species.tree$tip.label), sort(g
 ```
 
 
-##Week 5: See RevBayes file in the file and the output
+## Week 5: See RevBayes file in the file and the output
 
-##Week 6: DiscreteCharacters
+## Week 6: DiscreteCharacters
 ```{r}
 
 # Data from Brandley et al. (2008)
@@ -158,27 +159,26 @@ sqTree<-read.nexus("squamate.tre.txt")
 
 ```
 
-```{r}
+```{r,results="hide"}
 #To get a character for “limbed” versus “limbless” we will have to create it by finding all species with all limbs of length 0.
 hindLimbs<-sqData[,"HLL"]!=0
 foreLimbs<-sqData[,"FLL"]!=0
 limbless<-!hindLimbs & !foreLimbs
 limbless
 ```
-```{r}
+```{r,results="hide"}
 #Now we need to set our species names to match our tree, and assign these names to our trait vector:
 speciesNames<-sqData[,1]
 speciesNames
 
 ```
 
-```{r}
+```{r,results="hide"}
 species<-sub(" ","_",speciesNames)
-
 #names(limbless)<-species
 ```
 
-```{r}
+```{r,results="hide"}
 #Now, we can change what we are calling our character values (although TRUE & FALSE would be fine):
 limbs<-sapply(limbless,function(x) if(x) 0 else 1)
 class (limbs)
@@ -189,16 +189,15 @@ limbs.data<-data.frame(species,limbs)
 
 
 ```{r}
-
 #library(devtools)
 #devtools::install_github("phylotastic/rphylotastic")
-#library(rphylotastic)
-#library(geiger)
-
-
+library(rphylotastic)
+library(geiger)
 str(limbs)
+```
 
 
+```{r,results="hide"}
 CleanData <- function(phy, data) {
   library(rphylotastic)
   speciesNames<-unlist(data[,1], use.names = FALSE)
@@ -215,8 +214,9 @@ CleanData <- function(phy, data) {
 cleaned.discrete<-CleanData(sqTree,limbs.data)
 class(cleaned.discrete[[2]])
 
+```
 
-
+```{r}
 VisualizeData <- function(phy, data) {
    dotTree(phy,data[,1],colors=setNames(c("blue","red"),c(1,0)),type="fan",fsize=0.3,lwd=2)
 }
@@ -224,7 +224,6 @@ VisualizeData <- function(phy, data) {
 
 
 VisualizeData(cleaned.discrete$phy,cleaned.discrete$data)
-
 ```
 
 ```{r}
@@ -246,8 +245,58 @@ plotAnc(cleaned.discrete.tree, anc.ml, 1)
 ```
 
 
+```{r}
+#How can you estimate transition rates between states ? By using the fitdiscrete function in geiger
+## we can do that by fitting a  model with different backward & forward rates. In this case this would be a "ARD" ('all-rates-different') model:
+cleaned.discrete$data[,1]<-as.factor(cleaned.discrete$data[,1])# to covert 0 and 1 to factor
+fitARD<-fitDiscrete(cleaned.discrete$phy, cleaned.discrete$data[,1],model="ARD")
+fitARD
+```
 
-##Week 6: Continuous character models
+
+```{r}
+#How could you examine if transition rates are equal? 
+#By using 'equal-rates' or "ER" model.This model is one in which there is just one rate of evolution from limblessness to having limbs, and vice versa. 
+```
+
+```{r}
+#Think about the Lewis (2001) MKV model. Are your traits all variable? Will using this make sense for your data? Try using it. Do results change?
+#Conduct stochastic mapping.Here, I generate 150 stochastic character maps from our dataset. 
+library(diversitree)
+mtrees<-make.simmap(cleaned.discrete$phy, cleaned.discrete$data[,1],model="ER",nsim=150)
+mtrees
+```
+```{r}
+# Let's  estimate the number of changes of each type, the proportion of time spent in each state, and the posterior probabilities that each internal node is in each state, under our model. yes there is a change in the transition rate 
+pd<-summary(mtrees)
+pd
+```
+```{r,eval=FALSE}
+#let's compare the posterior probabilities from stochastic mapping with our marginal ancestral states. In fact, we expect these to be the same (as our number of stochastic character map samples goes to ∞).
+
+#fitER<-ace(cleaned.discrete$phy, cleaned.discrete$data,model="ER",type="discrete") 
+#plot(fitER$lik.anc,pd$ace,xlab="marginal ancestral states",
+#    ylab="posterior probabilities from stochastic mapping",
+#    pch=21,cex=1.4,bg="grey")
+#lines(c(0,1),c(0,1),lty="dashed",col="red",lwd=2)
+
+#str(cleaned.discrete$data)
+#class(cleaned.discrete$phy)
+
+```
+
+```{r}
+#How could you test order of state evolution?
+# We can fit a model in which transitions to limblessness are permitted, but not the reverse. To do so we will built a matrix See bellow. We can also fit anotehr model with the opposite assumption. The goal being to estimate the transtion rate bewteen state and compare the AICc 
+model<-matrix(c(0,0,1,0),2,2)
+```
+
+```{r}
+fitIrr<-fitDiscrete(cleaned.discrete$phy, cleaned.discrete$data[,1],model=model)
+model
+```
+
+## Week 7: Continuous character models
 
 ```{r}
 #install.packages("yearn")
@@ -265,14 +314,21 @@ library(rphylotastic)
 ## This data come from  Brandley et al. (2008)
 
 sqData<-read.csv("brandley_table.csv")
-head(sqData)
 sqTree<-read.nexus ("squamate.tre.txt")
-plotTree(sqTree,type="fan",lwd=1,fsize=0.5)
+plotTree(sqTree,ftype="i",lwd=1)
 
 ```
+```{r,results="hide"}
+speciesNames<-sqData[,1]
+speciesNames
+```
+```{r, results="hide"}
+species<-sub(" ","_",speciesNames)
+sqData[,1]<-species
+head(sqData)
+```
 
-```{r}
-source("resolvescientificnames.R")
+```{r,results="hide"}
 CleanData <- function(phy, data) {
   speciesNames<-unlist(data[,1], use.names = FALSE)
   cleaned.names.data<-taxa_resolve_names_with_gnr(speciesNames)
@@ -286,8 +342,7 @@ CleanData <- function(phy, data) {
 }
 
 cleaned.data<-CleanData(sqTree,sqData)
-class(cleaned.data)
-str(cleaned.data)
+
 
 ```
 
@@ -320,10 +375,10 @@ BM2
 ```
 
 ```{r}
-OU1 <- fitContinuous(cleaned.data$phy, cleaned.data$data[,1], model="OU")
+OU1 <- fitContinuous(cleaned.data$phy, cleaned.data$data, model="OU")
+ou.tree <- rescale(cleaned.data$phy, model="OU", 0.005)
 par(mfcol=(c(1,2)))
 plot(cleaned.data$phy, show.tip.label=FALSE)
-ou.tree <- rescale(cleaned.data$phy, model="OU",0.001)
 plot(ou.tree)
 ```
 ```{r}
@@ -333,13 +388,522 @@ plot(ou.tree)
 ```{r}
 AIC.BM2 <- BM2$opt$aicc
 AIC.OU1 <- OU1$opt$aicc
+AIC.BM2
+AIC.OU1 
+delta_aic<-function(x) x-x[which(x==min(x))]
+delta_aic(c(AIC.BM2, AIC.OU1))
 
+## it seems like the he Brownian motion model (Felsenstein 1973) looks better because it has the smallest AIC
 ```
 ```{r}
 
 #one.discrete.char <-limbs 
-#reconstruction.info <- ace(one.discrete.char, sqTree, type="discrete", method="ML", CI=TRUE)
-#best.states <- colnames(reconstruction.info$lik.anc)[apply(reconstruction.info$lik.anc, 1, which.max)]
+reconstruction.info <- ace(cleaned.discrete$data,cleaned.discrete$phy, type="discrete", method="ML", CI=TRUE)
+best.states <- colnames(reconstruction.info$lik.anc)[apply(reconstruction.info$lik.anc, 1, which.max)]
+class(best.states)
+```
+```{r}
+library(OUwie)
+## The function Ouwie uses a data frame with three columns. First columns with species names. The second column is the  selective regime and the third one is the continuous traits 
+newdat <-data.frame(names=rownames(cleaned.data$data))
+#str(newdat)
+#newdat[,1]
+#newdat[,2]
+cleaned.data$phy$node.label<-best.states
+newdat <-data.frame(names=rownames(cleaned.data$data),regime=cleaned.discrete$data[[1]], trait=cleaned.data$data[,1])
+nodeBased.OUMV <- OUwie(cleaned.data$phy, newdat,model="OUMV", simmap.tree=FALSE, diagn=FALSE)
+print(nodeBased.OUMV)
 ```
 
+```{r}
+library(OUwie)
+models <- c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
+runmod<-function(phy, data, models){
+  mod<-OUwie(phy, data, models, simmap.tree = F, diagn = F)
+}
+## running lapply
+results<- lapply(models, runmod, phy = cleaned.data$phy, data = newdat)
+results$AICc  
+
+AICc.values<-sapply(results, "[[", "AICc")
+names(AICc.values)<-models
+AICc.values<-AICc.values-min(AICc.values)
+best<-results[[which.min(AICc.values)]]
+
+
+```
+
+
+```{r}
+?OUwie.fixed
+```
+
+
+```{r}
+# Nornally alpha vary from exp(-500) to exp(1). But let take these values 
+alpha.values<-seq(from=1.637367e-06  , to= 0.2664882 , length.out=50)
+```
+
+```{r}
+library(OUwie)
+likelihood.values <- rep(NA, length(alpha.values))
+best$solution
+for (iteration in sequence(length(alpha.values))) {
+    likelihood.values[iteration] <- OUwie.fixed(cleaned.data$phy, newdat, model="OUMV", alpha=rep(alpha.values[iteration],2), sigma.sq=best$solution[2,], theta=best$theta[,1])$loglik
+}
+
+plot(x=alpha.values  , y= likelihood.values, xlab=" alpha", ylab="maximum log-likelihood", type="l", bty="n")
+points(x=best$solution[1,1], y=best$loglik, pch=16, col="red")
+text(x=best$solution[1,1], y=best$loglik, "unconstrained best", pos=4, col="red")
+```
+
+
+
+```{r}
+require("akima")
+nreps<-400
+theta1.points<-c(best$theta[1,1], rnorm(nreps-1, best$theta[1,1], 5*best$theta[1,2])) #center on optimal value, have extra variance
+theta2.points<-c(best$theta[2,1], rnorm(nreps-1, best$theta[2,1], 5*best$theta[2,2])) #center on optimal value, have extra variance
+likelihood.values<-rep(NA,nreps)
+
+for (iteration in sequence(nreps)) {
+    likelihood.values[iteration] <- OUwie.fixed(cleaned.data$phy, newdat, model="OUMV", alpha=best$solution[1,], sigma.sq=best$solution[2,], theta=c(theta1.points[iteration], theta2.points[iteration]))$loglik
+}
+```
+
+```{r}
+likelihood.differences<-(-(likelihood.values-max(likelihood.values)))
+
+```
+
+```{r,eval=FALSE}
+library(akima)
+interpolated.points<-interp(x=theta1.points, y=theta2.points, z= likelihood.differences, linear=FALSE, extrap=TRUE, xo=seq(min(theta1.points), max(theta1.points), length = 400), yo=seq(min(theta2.points), max(theta2.points), length = 400))
+
+contour(interpolated.points, xlim=range(c(theta1.points, theta2.points)),ylim=range(c(theta1.points, theta2.points)), xlab="Theta 1", ylab="Theta 2", levels=c(2,5,10),add=FALSE,lwd=1, bty="n", asp=1)
+
+points(x=best$theta[1,1], y=best$theta[2,1], col="red", pch=16)
+
+points(x=newdat$X[which(newdat$Reg==1)],y=rep(min(c(theta1.points, theta2.points)), length(which(trait$Reg==1))), pch=18, col=rgb(0,0,0,.3)) #the tip values in regime 1, plotted along x axis
+points(y=newdat$X[which(newdat$Reg==2)],x=rep(min(c(theta1.points, theta2.points)), length(which(trait$Reg==2))), pch=18, col=rgb(0,0,0,.3)) #the tip values in regime 2, plotted along y axis
+```
+
+
+```{r}
+library(phytools)
+trait.ordered<-data.frame(cleaned.discrete$data[,1], cleaned.discrete$data[,1])
+z<-trait.ordered[,1]
+names(z)<-rownames(trait.ordered)
+tree.mapped<-make.simmap(cleaned.discrete$phy,z,model="ER",nsim=1)
+leg<-c("black","red")
+names(leg)<-c(1,2)
+plotSimmap(tree.mapped,leg,pts=FALSE,ftype="off", lwd=1)
+simmapBased<-OUwie(tree.mapped,newdat,model="OUMV", simmap.tree=TRUE, diagn=FALSE)
+print(simmapBased)
+print(best)
+```
+
+
+## Week 8:Correlation models
+
+```{r,eval=FALSE}
+##Continuous data
+library(geiger)
+library(ape)
+tree.primates <- read.tree(text="((((Homo:0.21,Pongo:0.21):0.28,Macaca:0.49):0.13,Ateles:0.62):0.38,Galago:1.00);") #using examples from ape ?pic
+X <- c(4.09434, 3.61092, 2.37024, 2.02815, -1.46968)
+Y <- c(4.74493, 3.33220, 3.36730, 2.89037, 2.30259)
+names(X) <- names(Y) <- c("Homo", "Pongo", "Macaca", "Ateles", "Galago")
+pic.X <- pic(X, tree.primates)
+pic.Y <- pic(Y, tree.primates)
+```
+
+```{r, results="hide"}
+##Discrete data
+require("corHMM")
+?corHMM
+data(primates)
+ls()
+print(primates)
+require(phytools)
+```
+
+```{r}
+library(corHMM)
+library(phytools)
+primates$trait[which(grepl("Hylobates",primates$trait[,1])),2]<-1
+trait1<-primates$trait[,2]
+names(trait1)<-primates$trait[,1]
+primates$tree <- ape::multi2di(primates$tree)
+plotSimmap(make.simmap(primates$tree, trait1), pts=FALSE, fsize=0.8)
+rate.mat.er<-rate.mat.maker(rate.cat=1, hrm=FALSE, ntraits=1, nstates=2, model="ER")
+print(rate.mat.er)
+```
+
+```{r}
+library(corHMM)
+library(phytools)
+pp.er<-corHMM(primates$tree,primates$trait[,c(1,2)],rate.cat=1,rate.mat=rate.mat.er,node.states="marginal")
+print(pp.er)
+# This matrix is the transition rate between state 
+```
+```{r}
+library(corHMM)
+library(phytools)
+rate.mat.ard<-rate.mat.maker(rate.cat=1, hrm=FALSE, ntraits=1, nstates=2, model="ARD")
+print(rate.mat.ard)
+## The trait 1 can go from 1 to 2. The reverse is also possible with different rates 
+```
+
+```{r}
+library(corHMM)
+library(phytools)
+pp.ard<-corHMM(primates$tree,primates$trait[,c(1,2)],rate.cat=1,rate.mat=rate.mat.ard,node.states="marginal")
+print(pp.ard)
+## The first one (ARD)  is  better because it has a smaller AIc 
+```
+
+```{r}
+library(corHMM)
+library(phytools)
+rate.mat.er.4state<-rate.mat.maker(rate.cat=1, hrm=FALSE, ntraits=1, nstates=4, model="ER")
+print(rate.mat.er.4state)
+```
+
+
+```{r}
+library(corHMM)
+library(phytools)
+fourstate.trait<-rep(NA,Ntip(primates$tree))
+for(i in sequence(Ntip(primates$tree))) {
+    if(primates$trait[i,2]==0 && primates$trait[i,3]==0) {
+        fourstate.trait[i]<-0
+    }
+    if(primates$trait[i,2]==0 && primates$trait[i,3]==1) {
+        fourstate.trait[i]<-1
+    }
+    if(primates$trait[i,2]==1 && primates$trait[i,3]==0) {
+        fourstate.trait[i]<-2
+    }
+    if(primates$trait[i,2]==1 && primates$trait[i,3]==1) {
+        fourstate.trait[i]<-3
+    }
+}
+fourstate.data<-data.frame(Genus_sp=primates$trait[,1], T1=fourstate.trait)
+
+print(rayDISC(primates$tree, fourstate.data, ntraits=1, model="ER", node.states="marginal"))
+print(rayDISC(primates$tree, fourstate.data, ntraits=1, rate.mat=rate.mat.er.4state, node.states="marginal", model="ARD"))
+rate.mat.ard.4state<-rate.mat.maker(rate.cat=1, hrm=FALSE, ntraits=1, nstates=4, model="ARD")
+print(rate.mat.ard.4state)
+```
+
+
+```{r}
+library(corHMM)
+library(phytools)
+rate.mat.gtr.4state<-rate.mat.ard.4state
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(1,4))
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(2,6))
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(3,8))
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(4,6))
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(5,7))
+rate.mat.gtr.4state<-rate.par.eq(rate.mat.gtr.4state, c(6,7))
+print(rate.mat.gtr.4state)
+print(rayDISC(primates$tree, fourstate.data, ntraits=1, rate.mat= rate.mat.gtr.4state, node.states="marginal", model="ARD"))
+```
+
+```{r}
+library(corHMM)
+library(phytools)
+print(rate.mat.maker(rate.cat=1, hrm=FALSE, ntraits=2, nstates=2, model="ARD"))
+rate.mat.pag94<-rate.par.drop(rate.mat.ard.4state, drop.par=c(3,5,8,10))
+print
+
+```
+
+
+```{r}
+#####Construct a model to test if state 1 can never be lost
+CleanData <- function(phy, data) {
+  library(rphylotastic)
+  speciesNames<-unlist(data[,1], use.names = FALSE)
+  cleaned.names.data<-taxa_resolve_names_with_gnr(speciesNames)
+  cleaned.names.phy<-taxa_resolve_names_with_gnr(phy$tip.label)
+  phy.cleaned.names<-phy
+  phy.cleaned.names$tip.label <- cleaned.names.phy
+  data.vector<-data[,2]
+  names(data.vector)<-cleaned.names.data
+  cleaned.data<-treedata(phy.cleaned.names,data.vector, sort=TRUE, warnings=TRUE)
+  return(cleaned.data)
+}
+
+fourstate.data$T1<-as.factor(fourstate.data$T1)
+cleaned.discrete.primate<-CleanData(primates$tree,fourstate.data)
+
+```
+
+```{r}
+library(geiger)
+model<-matrix(
+  c(0,1,0,0,
+    0,0,1,0,
+    0,1,0,0,
+    1,1,1,0),
+  nrow = 4,
+  ncol = 4,
+  byrow = TRUE)
+
+
+rownames(model)<-colnames(model)<-c("(0,0)","(0,1)","(1,0)","(1,1)")
+fit<-fitDiscrete(cleaned.discrete.primate$phy,cleaned.discrete.primate$data,model=model)
+# Let's assume that 0=(0,0), 1=(0,1), 2=(1,0), 3=(1,1)
+plot(fit,show.zeros=FALSE,signif=1)
+title(main="state 1 never lost")
+
+
+```
+
+
+```{r}
+library(geiger)
+#Create and use a model to see if transitions from 00 go to 11 only via 01.
+model1<-matrix(
+  c(0,1,0,0,
+    0,0,0,1,
+    0,0,0,0,
+    0,0,0,0),
+  nrow = 4,
+  ncol = 4,
+  byrow = TRUE)
+
+
+rownames(model1)<-colnames(model)<-c("(0,0)","(0,1)","(1,0)","(1,1)")
+
+
+
+fit0011<-fitDiscrete(cleaned.discrete.primate$phy,cleaned.discrete.primate$data,model=model1)
+# Let's assume that 0=(0,0), 1=(0,1), 2=(1,0), 3=(1,1)
+plot(fit0011,show.zeros=FALSE,signif=1)
+title(main="transitions from (0,0) go to (1,1) \n only via (0,1)")
+```
+
+
+
+## week 9: Diversification
+```{r}
+#install.packages(c("ape", "TreeSim", "geiger", "diversitree", "devtools"))
+library(ape)
+library(TreeSim)
+library(geiger)
+library(diversitree)
+#devtools::install_github("thej022214/hisse")
+library(hisse)
+```
+
+```{r}
+my.tree <- TreeSim::sim.bd.taxa(n=300, numbsim=1, lambda=0.1, mu=0)[[1]]
+```
+
+```{r}
+ape::ltt.plot(my.tree)
+```
+
+```{r}
+ape::ltt.plot(my.tree, log="y")
+```
+
+```{r}
+yule.trees <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda=0.1, mu=0, complete=FALSE)
+#stop("How to do a multiple ltt pl
+```
+
+```{r}
+bd.trees <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda=1, mu=.9, complete=FALSE)
+ape::mltt.plot(bd.trees, log="y", legend=FALSE)
+```
+
+```{r}
+depth.range <- range(unlist(lapply(yule.trees,ape::branching.times)), unlist(lapply(bd.trees,ape::branching.times)))
+max.depth <- sum(abs(depth.range)) #ape rescales depths
+plot(x=c(0, -1*max.depth), y=c(1, ape::Ntip(yule.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both <- list(bd.trees, yule.trees)
+for (i in sequence(2)) {
+    tree.list <- list.of.both[[i]]
+    for (j in sequence(length(tree.list))) {
+        ape::ltt.lines(tree.list[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("Birth Death", "Yule"), fill=colors)
+```
+
+```{r}
+depth.range <- range(unlist(lapply(yule.trees,ape::branching.times)), unlist(lapply(bd.trees,ape::branching.times)))
+max.depth <- sum(abs(depth.range)) #ape rescales depths
+plot(x=c(0, -5), y=c(200, ape::Ntip(yule.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both <- list(bd.trees, yule.trees)
+for (i in sequence(2)) {
+    tree.list <- list.of.both[[i]]
+    for (j in sequence(length(tree.list))) {
+        ape::ltt.lines(tree.list[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("Birth Death", "Yule"), fill=colors)
+```
+```{r}
+my.trees <- TreeSim::sim.bd.taxa(n=400, numbsim=10, lambda=0.7, mu=0.3, complete=FALSE)
+ape::mltt.plot(my.trees, log="y", legend=FALSE)
+
+## When the  speciation rate is much higher than extinction rate
+```
+
+```{r}
+library(diversitree)
+speciation.rates <- c(0.1, 0.1, 0.1, 0.2) #0A, 1A, 0B, 1B
+extinction.rates <- rep(0.03, 4)
+transition.rates <- c(0.01,0.01,0, 0.01, 0, 0.01, 0.01,0,0.01, 0,0.01,0.01)
+pars <- c(speciation.rates, extinction.rates, transition.rates)
+phy <- tree.musse(pars, max.taxa=50, x0=1, include.extinct=FALSE)
+sim.dat.true <- data.frame(names(phy$tip.state), phy$tip.state)
+sim.dat <- sim.dat.true
+# Now to hide the "hidden" state
+sim.dat[sim.dat[,2]==3,2] = 1
+sim.dat[sim.dat[,2]==4,2] = 2
+# and convert states 1,2 to 0,1
+sim.dat[,2] = sim.dat[,2] - 1
+```
+
+```{r}
+plot(phy)
+```
+
+```{r}
+library(knitr)
+knitr::kable(cbind(sim.dat, true.char=sim.dat.true$phy.tip.state))
+```
+
+
+
+```{r}
+turnover.anc = c(1,1,0,0)
+eps.anc = c(1,1,0,0)
+```
+
+```{r}
+eps.anc = c(0,0,0,0)
+```
+
+```{r}
+trans.rates = TransMatMaker(hidden.states=TRUE)
+trans.rates
+```
+```{r}
+trans.rates.nodual = ParDrop(trans.rates, c(3,5,8,10))
+trans.rates.nodual
+```
+
+```{r}
+trans.rates.nodual.equal16 = ParEqual(trans.rates.nodual, c(1,6))
+trans.rates.nodual.equal16
+```
+
+```{r}
+trans.rates.nodual.allequal = ParEqual(trans.rates.nodual, c(1,2,1,3,1,4,1,5,1,6,1,7,1,8))
+trans.rates.nodual.allequal
+```
+
+```{r}
+trans.rates.nodual.allequal = trans.rates.nodual
+trans.rates.nodual.allequal[!is.na(trans.rates.nodual.allequal) & !trans.rates.nodual.allequal == 0] = 1
+trans.rates.nodual.allequal
+```
+
+```{r}
+trans.rates.bisse = TransMatMaker(hidden.states=FALSE)
+trans.rates.bisse
+```
+
+```{r}
+trans.rates.nodual.allequal = trans.rates.nodual
+trans.rates.nodual.allequal[!is.na(trans.rates.nodual.allequal) & !trans.rates.nodual.allequal == 0] = 1
+trans.rates.nodual.allequal
+```
+
+```{r}
+pp = hisse(phy, sim.dat, f=c(1,1), hidden.states=TRUE, turnover.anc=turnover.anc,
+           eps.anc=eps.anc, trans.rate=trans.rates.nodual.allequal)
+
+```
+
+
+```{r}
+##A common mistake
+turnover.anc = c(1,2,0,3)
+eps.anc = c(1,2,0,3)
+
+```
+
+```{r}
+trans.rates <- TransMatMaker(hidden.states=TRUE)
+trans.rates.nodual.no0B <- ParDrop(trans.rates, c(2,3,5,7,8,9,10,12))
+trans.rates.nodual.no0B
+```
+
+```{r}
+pp = hisse(phy, sim.dat, f=c(1,1), hidden.states=TRUE, turnover.anc=turnover.anc,
+           eps.anc=eps.anc, trans.rate=trans.rates.nodual.allequal, output.type="net.div")
+
+```
+
+```{r}
+load("testrecon1.rda")
+class(pp.recon)
+pp.recon
+```
+
+```{r}
+plot.hisse.states(pp.recon, rate.param="net.div", show.tip.label=FALSE)
+
+```
+
+```{r}
+plot.hisse.states(pp.recon, rate.param="net.div", show.tip.label=FALSE, rate.range=c(0,0.072))
+
+```
+
+```{r}
+pp.recon$aic
+```
+
+```{r}
+pp.recon = MarginRecon(phy, sim.dat, f=c(1,1), hidden.states=TRUE, pars=pp$solution,
+                       aic=pp$aic, n.cores=2)
+```
+
+```{r}
+hisse.results.list = list()
+load("testrecon1.rda")
+hisse.results.list[[1]] = pp.recon
+load("testrecon2.rda")
+hisse.results.list[[2]] = pp.recon
+load("testrecon3.rda")
+hisse.results.list[[3]] = pp.recon
+# Now supply the list the plotting function
+plot.hisse.states(hisse.results.list, rate.param="net.div", show.tip.label=FALSE, rate.range=c(0,0.072))
+```
+
+```{r}
+# First, suck in all the files with .Rsave line ending in your working directory:
+files = system("ls -1 | grep .rda", intern=TRUE)
+# Create an empty list object
+hisse.results.list = list()
+# Now loop through all files, adding the embedded pp.recon object in each
+for(i in sequence(length(files))){
+  load(files[i])
+  hisse.results.list[[i]] = pp.recon
+  rm(pp.recon)
+}
+
+```
 
